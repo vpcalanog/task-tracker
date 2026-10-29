@@ -1,26 +1,292 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/* ==========================================================================
+   1. DESIGN TOKENS
+   --------------------------------------------------------------------------
+   Every color, font size, radius and shadow used in the app is defined ONCE
+   here. Tailwind v4 turns each `--color-*` token into utilities such as
+   `bg-primary`, `text-fg-muted` and `border-border`, and every utility reads
+   the CSS variable at runtime, so dark mode only has to swap the variables.
+
+   Spacing: we keep Tailwind's built-in scale (1 unit = 0.25rem, so `p-4` is
+   1rem). Use it instead of inventing pixel values.
+   ========================================================================== */
+@theme {
+  /* --- Neutrals --- */
+  --color-bg: #f8fafc; /* page background */
+  --color-surface: #ffffff; /* cards, tables, inputs */
+  --color-surface-muted: #f1f5f9; /* table header, hover rows */
+  --color-fg: #0f172a; /* main text            (17.8:1 on surface) */
+  --color-fg-muted: #475569; /* secondary text       (7.6:1 on surface) */
+  --color-border: #e2e8f0; /* decorative dividers */
+  --color-border-strong: #64748b; /* input outlines       (4.8:1, meets 3:1 UI rule) */
+
+  /* --- Brand / primary --- */
+  --color-primary: #4f46e5; /* buttons, links        (6.3:1 vs white text) */
+  --color-primary-hover: #4338ca;
+  --color-primary-fg: #ffffff; /* text on primary */
+  --color-primary-soft: #eef2ff; /* subtle primary background */
+
+  /* --- Status colors: `*-fg` is text, `*-bg` is its background --- */
+  --color-success-fg: #047857;
+  --color-success-bg: #ecfdf5;
+  --color-warning-fg: #b45309;
+  --color-warning-bg: #fffbeb;
+  --color-error-fg: #b91c1c;
+  --color-error-bg: #fef2f2;
+
+  /* --- Typography --- */
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+  /* Fluid sizes: clamp(min, preferred, max) grows smoothly with the viewport. */
+  --text-h1: clamp(1.5rem, 1.2rem + 1.2vw, 2rem);
+  --text-h1--line-height: 1.2;
+  --text-stat: clamp(2.25rem, 1.8rem + 2vw, 3rem);
+  --text-stat--line-height: 1;
+
+  /* --- Shape & depth --- */
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --shadow-sm: 0 1px 2px 0 rgb(15 23 42 / 0.06);
+  --shadow-md: 0 4px 12px -2px rgb(15 23 42 / 0.1), 0 2px 4px -2px rgb(15 23 42 / 0.06);
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
+/* Dark mode: same token names, different values. Follows the OS setting. */
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --color-bg: #020617;
+    --color-surface: #0f172a;
+    --color-surface-muted: #1e293b;
+    --color-fg: #f1f5f9;
+    --color-fg-muted: #94a3b8;
+    --color-border: #1e293b;
+    --color-border-strong: #64748b;
+
+    --color-primary: #818cf8;
+    --color-primary-hover: #a5b4fc;
+    --color-primary-fg: #0f172a;
+    --color-primary-soft: #1e1b4b;
+
+    --color-success-fg: #6ee7b7;
+    --color-success-bg: #052e22;
+    --color-warning-fg: #fcd34d;
+    --color-warning-bg: #2b1a04;
+    --color-error-fg: #fca5a5;
+    --color-error-bg: #3b0d0d;
+
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.4);
+    --shadow-md: 0 4px 12px -2px rgb(0 0 0 / 0.5);
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* ==========================================================================
+   2. BASE STYLES
+   ========================================================================== */
+@layer base {
+  html {
+    color-scheme: light dark; /* native scrollbars & form controls match the theme */
+  }
+
+  body {
+    background: var(--color-bg);
+    color: var(--color-fg);
+    font-family: var(--font-sans);
+  }
+
+  /* One visible keyboard focus style for everything. :focus-visible only
+     shows it for keyboard users, not on mouse clicks. */
+  :focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+  }
+
+  /* Respect users who ask the OS for less motion. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      transition-duration: 0.01ms !important;
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+    }
+  }
+}
+
+/* ==========================================================================
+   3. SHARED COMPONENT CLASSES
+   --------------------------------------------------------------------------
+   Small, reusable building blocks. They live in the `components` layer, so
+   a Tailwind utility on the same element (e.g. `btn w-full`) still wins.
+   ========================================================================== */
+@layer components {
+  /* ---- Buttons (also used on <Link>) ---- */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    min-height: 2.75rem; /* 44px touch target */
+    padding: 0.5rem 1rem;
+    border: 1px solid transparent;
+    border-radius: var(--radius-md);
+    font-size: 0.875rem;
+    font-weight: 600;
+    line-height: 1.25rem;
+    text-decoration: none;
+    cursor: pointer;
+    transition:
+      background-color 150ms,
+      border-color 150ms,
+      transform 50ms;
+  }
+  .btn:active {
+    transform: translateY(1px);
+  }
+  .btn:disabled,
+  .btn[aria-disabled="true"] {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  .btn-primary {
+    background: var(--color-primary);
+    color: var(--color-primary-fg);
+    box-shadow: var(--shadow-sm);
+  }
+  .btn-primary:hover:not(:disabled) {
+    background: var(--color-primary-hover);
+  }
+
+  .btn-secondary {
+    background: var(--color-surface);
+    color: var(--color-fg);
+    border-color: var(--color-border-strong);
+  }
+  .btn-secondary:hover:not(:disabled) {
+    background: var(--color-surface-muted);
+  }
+
+  /* ---- Cards ---- */
+  .card {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+  }
+
+  /* ---- Form fields ---- */
+  .label {
+    display: block;
+    margin-bottom: 0.375rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+  }
+  .input {
+    display: block;
+    width: 100%;
+    min-height: 2.75rem;
+    padding: 0.5rem 0.75rem;
+    background: var(--color-surface);
+    color: var(--color-fg);
+    border: 1px solid var(--color-border-strong);
+    border-radius: var(--radius-md);
+    font-size: 1rem; /* 16px stops iOS from zooming in on focus */
+    transition: border-color 150ms, box-shadow 150ms;
+  }
+  .input:hover {
+    border-color: var(--color-fg-muted);
+  }
+  .input:focus-visible {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 35%, transparent);
+  }
+  .input:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+  .hint {
+    margin-top: 0.375rem;
+    font-size: 0.875rem;
+    color: var(--color-fg-muted);
+  }
+
+  /* ---- Badges (priority / status pills) ---- */
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.125rem 0.625rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .badge-neutral {
+    background: var(--color-surface-muted);
+    color: var(--color-fg-muted);
+  }
+  .badge-success {
+    background: var(--color-success-bg);
+    color: var(--color-success-fg);
+  }
+  .badge-warning {
+    background: var(--color-warning-bg);
+    color: var(--color-warning-fg);
+  }
+  .badge-error {
+    background: var(--color-error-bg);
+    color: var(--color-error-fg);
+  }
+
+  /* ---- Alerts ---- */
+  .alert {
+    padding: 1rem;
+    border: 1px solid currentColor;
+    border-radius: var(--radius-md);
+  }
+  .alert-error {
+    background: var(--color-error-bg);
+    color: var(--color-error-fg);
+  }
+
+  /* ---- Tables ---- */
+  .table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+  }
+  .table th {
+    padding: 0.75rem 1rem;
+    background: var(--color-surface-muted);
+    color: var(--color-fg-muted);
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-align: left;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .table td {
+    padding: 1rem;
+    border-top: 1px solid var(--color-border);
+    vertical-align: top;
+  }
+  .table tbody tr:hover {
+    background: var(--color-surface-muted);
+  }
+
+  /* ---- Loading skeleton ---- */
+  .skeleton {
+    background: var(--color-surface-muted);
+    border-radius: var(--radius-sm);
+    animation: pulse 1.5s ease-in-out infinite;
+  }
+}
+
+@keyframes pulse {
+  50% {
+    opacity: 0.5;
+  }
 }
